@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>🐣 小鸟大冒险</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Press Start 2P', cursive, Arial, sans-serif;
+            background: linear-gradient(135deg, #87CEEB, #98FB98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #app {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.4em;
+            margin-bottom: 8px;
+        }
+
+        p {
+            font-size: 0.8em;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        #game-container {
+            position: relative;
+            width: 360px;
+            height: 640px;
+            overflow: hidden;
+            border: 6px solid #4b3f2f;
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #87ceeb 0%, #87ceeb 85%, #8b4513 85%, #deb887 100%);
+            touch-action: manipulation;
+        }
+
+        .cloud {
+            position: absolute;
+            top: 80px;
+            width: 80px;
+            height: 50px;
+            background: white;
+            border-radius: 25px;
+            opacity: 0.9;
+        }
+        .cloud::before, .cloud::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+        }
+        .cloud::before {
+            width: 50px; height: 50px;
+            left: 20px; top: -15px;
+        }
+        .cloud::after {
+            width: 30px; height: 30px;
+            right: 10px; top: -10px;
+        }
+
+        /* 小鸟 */
+        #bird {
+            position: absolute;
+            width: 50px;
+            height: 40px;
+            left: 60px;
+            transition: transform 0.1s linear;
+            z-index: 10;
+        }
+        #bird::before {
+            content: '';
+            display: block;
+            width: 40px;
+            height: 40px;
+            background: #FFD700;
+            border-radius: 50% 50% 50% 20%;
+            border: 3px solid #333;
+        }
+        #bird::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 10px;
+            background: #FF4500;
+            border-radius: 40% 40% 0 0;
+            top: 26px;
+            left: 44px;
+            transform: rotate(15deg);
+        }
+        #bird-eye {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: black;
+            border-radius: 50%;
+            top: 16px;
+            left: 30px;
+            z-index: 11;
+        }
+        #bird-wing {
+            position: absolute;
+            width: 18px;
+            height: 20px;
+            background: #FF6347;
+            border-radius: 50% 0 50% 50%;
+            top: 28px;
+            left: 18px;
+            transform-origin: top right;
+        }
+        .wing-up { transform: rotate(-30deg); }
+        .wing-down { transform: rotate(10deg); }
+
+        /* 管道 */
+        .pipe {
+            position: absolute;
+            width: 60px;
+            background: #2e8b57;
+            border-left: 4px solid #006400;
+            border-right: 4px solid #006400;
+        }
+        .pipe::before {
+            content: '';
+            position: absolute;
+            width: calc(100% + 8px);
+            height: 15px;
+            background: #006400;
+            border-radius: 6px;
+        }
+        .pipe-top::before {
+            bottom: -10px;
+            left: -4px;
+            border-radius: 6px 6px 0 0;
+        }
+        .pipe-bottom::before {
+            top: -10px;
+            left: -4px;
+            border-radius: 0 0 6px 6px;
+        }
+        .pipe-top { top: 0; border-radius: 8px 8px 0 0; }
+        .pipe-bottom { bottom: 60px; border-radius: 0 0 8px 8px; }
+
+        /* 金币 */
+        .coin {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: gold;
+            border-radius: 50%;
+            box-shadow: 0 0 8px yellow;
+            animation: spin 1s infinite linear;
+        }
+        .coin::before {
+            content: '★';
+            position: absolute;
+            font-size: 24px;
+            color: orange;
+            top: 2px;
+            left: 4px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 道具 */
+        .powerup {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 36px;
+            font-size: 20px;
+            animation: float 2s infinite ease-in-out;
+        }
+        .magnet { background: #9370DB; color: white; }
+        .shield { background: #40E0D0; color: #333; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* UI 元素 */
+        #score-display {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 40px;
+            font-weight: bold;
+            color: white;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+        }
+
+        .btn-sound {
+            width: 40px;
+            height: 40px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .status-bar {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        .status-item {
+            background: rgba(0,0,0,0.5);
+            padding: 4px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .screen-title {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 12px 36px;
+            font: inherit;
+            background: #ffcc00;
+            color: #333;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            margin: 10px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #ffdd33;
+            transform: translateY(-3px);
+        }
+
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            background: repeating-linear-gradient(
+                    90deg,
+                    #deb887, #deb887 20px,
+                    #d2b48c 20px, #d2b48c 40px
+            );
+            border-top: 6px solid saddlebrown;
+            z-index: 5;
+        }
+
+        .qr-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 200;
+            max-width: 280px;
+            color: #333;
+        }
+        .qr-popup img {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto;
+            display: block;
+        }
+        .qr-popup p {
+            text-align: center;
+            font-size: 14px;
+            margin: 10px 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>🐣 小鸟大冒险</h1>
+    <p>收集金币，使用道具，挑战高分！</p>
+
+    <div id="game-container" @click="handleClick">
+        <!-- 云朵 -->
+        <div class="cloud" style="left:50px;"></div>
+        <div class="cloud" style="left:200px;top:120px;"></div>
+        <div class="cloud" style="left:130px;top:60px;"></div>
+
+        <!-- 小鸟 -->
+        <div id="bird" :style="{ top: birdY + 'px', transform: birdTransform }">
+            <div id="bird-eye"></div>
+            <div id="bird-wing" :class="wingClass"></div>
+        </div>
+
+        <!-- 分数 -->
+        <div id="score-display">{{ score }}</div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <span class="status-item">💰 {{ coins }} 金币</span>
+            <span class="status-item" v-if="magnetActive">🧲 磁铁开启</span>
+            <span class="status-item" v-if="shieldActive">🛡️ 护盾</span>
+        </div>
+
+        <!-- 音量按钮 -->
+        <div id="ui-overlay">
+            <button class="btn-sound" @click.stop="toggleSound">{{ soundOn ? '🔊' : '🔇' }}</button>
+        </div>
+
+        <!-- 管道 -->
+        <div v-for="(pipe, index) in pipes" :key="'pipe-'+index">
+            <div class="pipe pipe-top" :style="{ height: pipe.topHeight + 'px', left: pipe.x + 'px' }"></div>
+            <div class="pipe pipe-bottom" :style="{ height: pipe.bottomHeight + 'px', left: pipe.x + 'px' }"></div>
+        </div>
+
+        <!-- 金币 -->
+        <div v-for="coin in coinsList" :key="coin.id"
+             class="coin"
+             :style="{ left: coin.x + 'px', top: coin.y + 'px' }">
+        </div>
+
+        <!-- 道具 -->
+        <div v-for="p in powerups" :key="p.id"
+             :class="['powerup', p.type]"
+             :style="{ left: p.x + 'px', top: p.y + 'px' }">
+            {{ p.type === 'magnet' ? '🧲' : '🛡️' }}
+        </div>
+
+        <!-- 地面 -->
+        <div id="ground"></div>
+
+        <!-- 开始界面 -->
+        <div class="screen-overlay" v-if="gameState === 'start'">
+            <div class="screen-title">🐣 准备好了吗？</div>
+            <div style="font-size:14px;margin-bottom:20px;">点击开始，收集金币飞得更远！</div>
+            <button class="btn" @click.stop="startGame">开始冒险</button>
+        </div>
+
+        <!-- 游戏结束界面 -->
+        <div class="screen-overlay" v-if="gameState === 'gameOver'">
+            <div class="screen-title">🎉 冒险结束！</div>
+            <div style="font-size:18px;">得分：{{ score }}</div>
+            <div style="font-size:14px;">金币：{{ coins }}</div>
+            <div style="font-size:14px;margin:10px 0;" v-if="achievement">🏆 成就：{{ achievement }}</div>
+            <button class="btn" @click.stop="showShareQr = true">分享给朋友</button>
+            <button class="btn" @click.stop="startGame">再玩一次</button>
+        </div>
+
+        <!-- 分享二维码弹窗 -->
+        <div class="qr-popup" v-if="showShareQr" @click.stop="showShareQr = false">
+            <img :src="qrCodeUrl" alt="扫码一起玩" />
+            <p>用微信扫二维码</p>
+            <p>邀请好友一起挑战！</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, computed, watch } = Vue;
+
+    createApp({
+        setup() {
+            const gameState = ref('start');
+            const birdY = ref(240);
+            const velocity = ref(0);
+            const gravity = 0.4;
+            const jumpStrength = -7;
+            const pipes = ref([]);
+            const coinsList = ref([]);
+            const powerups = ref([]);
+            const score = ref(0);
+            const coins = ref(0);
+            const highScore = ref(parseInt(localStorage.getItem('flappyHighScoreEasy')) || 0);
+            const soundOn = ref(true);
+            const wingFlap = ref(true);
+            const magnetActive = ref(false);
+            const shieldActive = ref(false);
+            const showShareQr = ref(false);
+            const achievement = ref('');
+            const qrCodeUrl = ref('https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(window.location.href));
+
+            let gameLoop;
+            let pipeInterval;
+            let coinInterval;
+            let powerupInterval;
+            let wingInterval;
+            let magnetEffectInterval;
+
+            // 播放音效（Web Audio API）
+            const playSound = (type) => {
+                if (!soundOn.value) return;
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    switch (type) {
+                        case 'flap': osc.frequency.setValueAtTime(600, ctx.currentTime); gain.gain.setValueAtTime(0.06, ctx.currentTime); break;
+                        case 'coin': osc.frequency.setValueAtTime(800, ctx.currentTime); gain.gain.setValueAtTime(0.08, ctx.currentTime); break;
+                        case 'powerup': osc.frequency.setValueAtTime(400, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); break;
+                        case 'hit': osc.frequency.setValueAtTime(200, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); break;
+                    }
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.2);
+                } catch (e) {}
+            };
+
+            const flap = () => {
+                if (gameState.value !== 'playing') return;
+                velocity.value = jumpStrength;
+                playSound('flap');
+            };
+
+            const createPipe = () => {
+                if (pipes.value.length > 5) return;
+                const gap = 220;
+                const minHeight = 60;
+                const maxHeight = 300;
+                const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                const bottomHeight = 640 - topHeight - gap - 60;
+
+                pipes.value.push({
+                    x: 360,
+                    topHeight,
+                    bottomHeight,
+                    passed: false,
+                    created: Date.now()
+                });
+            };
+
+            const createCoin = () => {
+                if (coinsList.value.length > 3) return;
+                const y = Math.random() * (500 - 100) + 100;
+                coinsList.value.push({
+                    id: Date.now(),
+                    x: 360 + Math.random() * 200,
+                    y: y
+                });
+            };
+
+            const createPowerup = () => {
+                const types = ['magnet', 'shield'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                powerups.value.push({
+                    id: Date.now(),
+                    x: 360 + Math.random() * 300,
+                    y: Math.random() * 400 + 100,
+                    type
+                });
+            };
+
+            const moveElements = () => {
+                // 移动管道
+                pipes.value.forEach((pipe, index) => {
+                    pipe.x -= 2;
+                    if (!pipe.passed && pipe.x < 60 - 60) {
+                        score.value++;
+                        playSound('flap');
+                        pipe.passed = true;
+                    }
+                    if (pipe.x < -60) {
+                        pipes.value.splice(index, 1);
+                    }
+                });
+
+                // 移动金币
+                coinsList.value.forEach((coin, index) => {
+                    coin.x -= 2;
+                    if (coin.x < -30) {
+                        coinsList.value.splice(index, 1);
+                    }
+                    // 吸引金币（磁铁模式）
+                    if (magnetActive.value) {
+                        const dx = (60 - coin.x);
+                        const dy = (birdY.value + 20 - coin.y);
+                        if (Math.abs(dx) < 80 && Math.abs(dy) < 80) {
+                            coin.x += dx * 0.1;
+                            coin.y += dy * 0.1;
+                        }
+                    }
+                    // 检测碰撞
+                    if (
+                        60 < coin.x + 30 &&
+                        60 + 50 > coin.x &&
+                        birdY.value < coin.y + 30 &&
+                        birdY.value + 40 > coin.y
+                    ) {
+                        coinsList.value.splice(index, 1);
+                        coins.value++;
+                        playSound('coin');
+                    }
+                });
+
+                // 移动道具
+                powerups.value.forEach((p, index) => {
+                    p.x -= 2;
+                    if (p.x < -40) {
+                        powerups.value.splice(index, 1);
+                    }
+                    // 碰撞检测
+                    if (
+                        60 < p.x + 36 &&
+                        60 + 50 > p.x &&
+                        birdY.value < p.y + 36 &&
+                        birdY.value + 40 > p.y
+                    ) {
+                        powerups.value.splice(index, 1);
+                        if (p.type === 'magnet') {
+                            magnetActive.value = true;
+                            setTimeout(() => { magnetActive.value = false }, 5000);
+                        } else if (p.type === 'shield') {
+                            shieldActive.value = true;
+                            setTimeout(() => { shieldActive.value = false }, 5000);
+                        }
+                        playSound('powerup');
+                    }
+                });
+            };
+
+            const updateBird = () => {
+                velocity.value += gravity;
+                birdY.value += velocity.value;
+            };
+
+            const checkCollision = () => {
+                if (birdY.value < 0 || birdY.value > 640 - 60 - 40) {
+                    if (shieldActive.value) return;
+                    endGame();
+                    return;
+                }
+
+                for (let pipe of pipes.value) {
+                    if (
+                        60 < pipe.x + 60 &&
+                        60 + 50 > pipe.x &&
+                        (birdY.value < pipe.topHeight || birdY.value + 40 > 640 - 60 - pipe.bottomHeight)
+                    ) {
+                        if (shieldActive.value) return;
+                        endGame();
+                        return;
+                    }
+                }
+            };
+
+            const gameStep = () => {
+                updateBird();
+                moveElements();
+                checkCollision();
+            };
+
+            const startGame = () => {
+                clearIntervalAll();
+                birdY.value = 240;
+                velocity.value = 0;
+                pipes.value = [];
+                coinsList.value = [];
+                powerups.value = [];
+                score.value = 0;
+                coins.value = 0;
+                magnetActive.value = false;
+                shieldActive.value = false;
+                achievement.value = '';
+
+                gameState.value = 'playing';
+                gameLoop = setInterval(gameStep, 25);
+                pipeInterval = setInterval(createPipe, 3000);
+                coinInterval = setInterval(createCoin, 4000);
+                powerupInterval = setInterval(createPowerup, 15000);
+                wingInterval = setInterval(() => { wingFlap.value = !wingFlap.value; }, 300);
+
+                setTimeout(createPipe, 1500);
+                setTimeout(createCoin, 2000);
+            };
+
+            const endGame = () => {
+                gameState.value = 'gameOver';
+                clearIntervalAll();
+
+                // 解锁成就
+                if (score.value >= 10) achievement.value = "飞行新手";
+                else if (score.value >= 20) achievement.value = "空中高手";
+                else if (coins.value >= 5) achievement.value = "金币收藏家";
+
+                if (score.value > highScore.value) {
+                    highScore.value = score.value;
+                    localStorage.setItem('flappyHighScoreEasy', score.value);
+                }
+            };
+
+            const clearIntervalAll = () => {
+                [gameLoop, pipeInterval, coinInterval, powerupInterval, wingInterval, magnetEffectInterval]
+                    .filter(id => id)
+                    .forEach(clearInterval);
+            };
+
+            const handleClick = (e) => {
+                e.preventDefault();
+                if (gameState.value === 'playing') {
+                    flap();
+                } else {
+                    startGame();
+                }
+            };
+
+            const toggleSound = () => {
+                soundOn.value = !soundOn.value;
+            };
+
+            const handleKeydown = (e) => {
+                if (e.code === 'Space' || e.key === ' ') {
+                    e.preventDefault();
+                    handleClick(e);
+                }
+            };
+
+            onMounted(() => {
+                window.addEventListener('keydown', handleKeydown);
+            });
+
+            const birdTransform = computed(() => {
+                const angle = Math.min(Math.max(velocity.value * 5, -25), 70);
+                return `rotate(${angle}deg)`;
+            });
+
+            const wingClass = computed(() => {
+                return wingFlap.value ? 'wing-up' : 'wing-down';
+            });
+
+            return {
+                gameState, birdY, pipes, score, highScore, birdTransform, wingClass,
+                coinsList, coins, powerups, soundOn, magnetActive, shieldActive,
+                achievement, showShareQr, qrCodeUrl,
+                startGame, handleClick, toggleSound
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
